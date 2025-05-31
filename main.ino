@@ -2,22 +2,27 @@
 #include <BLEDevice.h>
 #include <BLEUtils.h>
 #include <BLEServer.h>
-#include <Stepper.h>
 
-#include <Stepper.h>
-// TODO: is this correct ?
-#define STEPS 200
-
-#define DIRECTION 7
-#define STEP 8
-
-#define SPEED 50
-
-
-Stepper stepper(STEPS, DIRECTION, STEP);
+#define DIR_PIN 7
+#define STEP_PIN 8
 
 #define SERVICE_UUID        "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"
 #define CHARACTERISTIC_UUID "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"
+
+void turn(int steps, int delay) {
+    if(steps < 0) {
+        steps *= -1;
+        digitalWrite(DIR_PIN, LOW);
+    } else {
+        digitalWrite(DIR_PIN, HIGH);
+    }
+    for (int i = 0; i < steps; i++) {
+        digitalWrite(STEP_PIN, HIGH);
+        delayMicroseconds(delay);
+        digitalWrite(STEP_PIN, LOW);
+        delayMicroseconds(delay);
+    }
+}
 
 class BluetoothCallback : public BLECharacteristicCallbacks {
     void onWrite(BLECharacteristic *pCharacteristic) {
@@ -25,7 +30,21 @@ class BluetoothCallback : public BLECharacteristicCallbacks {
         if (receivedData.length() > 0) {
             Serial.print("Received: ");
             Serial.println(receivedData);
-            stepper.step(receivedData.toInt());
+
+            int spaceIndex = receivedData.indexOf(' ');
+            if (spaceIndex == -1) {
+                Serial.println("Invalid format. Use: <steps> <delay>");
+                return;
+            }
+
+            String stepsStr = receivedData.substring(0, spaceIndex);
+            String delayStr = receivedData.substring(spaceIndex + 1);
+            int steps = stepsStr.toInt();
+            int delay = delayStr.toInt();
+
+            turn(steps, delay);
+
+            Serial.println("Stepper moved " + stepsStr + " steps with " + delayStr + " delay");
         }
     }
 };
@@ -33,8 +52,9 @@ class BluetoothCallback : public BLECharacteristicCallbacks {
 void setup() {
     Serial.begin(115200);
     Serial.println("Starting BLE...");
-    stepper.setSpeed(SPEED);
 
+    pinMode(STEP_PIN, OUTPUT);
+    pinMode(DIR_PIN, OUTPUT);
 
     BLEDevice::init("ESP32-C3_BLE");
     BLEServer *pServer = BLEDevice::createServer();
@@ -61,8 +81,6 @@ void setup() {
 }
 
 void loop() {
-    BLEAdvertising *pAdvertising = BLEDevice::getAdvertising();
-    pAdvertising->start();
-    delay(3000);
+    delay(100)
 }
 

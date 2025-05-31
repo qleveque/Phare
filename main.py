@@ -11,9 +11,9 @@ from asyncio import sleep
 
 async def connect_and_send_messages(audio):
     async with MyBleClient() as client:
-        async def turn(value):
+        async def turn(steps, delay=10):
             play(audio, "./sounds/gear.wav", loop=True, volume=0.5)
-            await client.send(value)
+            await client.send(f"{steps} {delay}")
             stop(audio, "./sounds/gear.wav")
 
         play(audio, "./sounds/music.wav", loop=True, volume=0.5)
